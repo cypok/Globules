@@ -7,18 +7,60 @@
 
 const UINT MAX_GLOBULES_COUNT = 10;
 
+struct Vector
+{
+    float x, y;
+    Vector(float x = 0.0f, float y = 0.0f) : x(x), y(y) {}
+    Vector & operator+=(const Vector & other)
+    {
+        x += other.x;
+        y += other.y;
+        return *this;
+    }
+    Vector operator+(const Vector & other) const
+    {
+        Vector result = *this;
+        result += other;
+        return result;
+    }
+    Vector & operator-=(const Vector & other)
+    {
+        x -= other.x;
+        y -= other.y;
+        return *this;
+    }
+    Vector operator-(const Vector & other) const
+    {
+        Vector result = *this;
+        result -= other;
+        return result;
+    }
+};
+
+struct Globule
+{
+    Vector r, v;
+    float radius;
+    RGBQUAD color;
+};
+
 class GlobulesSystem
 {
 protected:
     RGBQUAD * bits_buffers[1];
     SIZE size;
+    Globule *globules;
+    unsigned globules_count;
+
 public:
-    GlobulesSystem(LONG buffer_width, LONG buffer_height);
+    GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count);
     ~GlobulesSystem();
 
     static DWORD WINAPI CalcAndRender(LPVOID param);
     RGBQUAD * GetBufferForRead();
     RGBQUAD * GetBufferForWrite();
+    void DrawGlobules();
+    void SetGlobule(unsigned num, Globule g);
 };
 
 

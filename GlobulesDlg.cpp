@@ -9,11 +9,22 @@
 #define new DEBUG_NEW
 #endif
 
+static RGBQUAD RandColor()
+{
+    RGBQUAD c = {rand() % 256, rand() % 256, rand() % 256, 0};
+    return c;
+}
+
+static RGBQUAD Color(BYTE r, BYTE g, BYTE b)
+{
+    RGBQUAD c = {b, g, r, 0};
+    return c;
+}
 
 CGlobulesDlg::CGlobulesDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CGlobulesDlg::IDD, pParent)
     , template_name(_T(""))
-    , globules_count(0)
+    , globules_count(1)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -45,7 +56,7 @@ BOOL CGlobulesDlg::OnInitDialog()
 
 
     template_name = _T("[none]");
-    globules_count = 5;
+    globules_count = 2;
 
     gravity_slider.SetRange(0, 50, TRUE);
     gravity_slider.SetPos(10);
@@ -55,7 +66,14 @@ BOOL CGlobulesDlg::OnInitDialog()
     CRect size;
     canvas.GetWindowRect(&size);
     ScreenToClient(&size);
-    gs = new GlobulesSystem(size.Width(), size.Height());
+    gs = new GlobulesSystem(size.Width(), size.Height(), globules_count);
+    
+    Globule g = {Vector(0.1, 0.1), Vector(1, 2), 0.05, Color(255, 0, 0)};
+    gs->SetGlobule(0, g);
+    g.r = Vector(0.9, 0.5);
+    g.color = Color(0, 0, 255);
+    gs->SetGlobule(1, g);
+
     CreateThread(NULL, 0, &GlobulesSystem::CalcAndRender, gs, 0, NULL);
 
 	return TRUE;
@@ -115,22 +133,10 @@ void CGlobulesDlg::OnDeltaposSpin1(NMHDR *pNMHDR, LRESULT *pResult)
     *pResult = 0;
 }
 
-static RGBQUAD RandColor()
-{
-    RGBQUAD c = {rand() % 256, rand() % 256, rand() % 256, 0};
-    return c;
-}
-
-static RGBQUAD Color(BYTE r, BYTE g, BYTE b)
-{
-    RGBQUAD c = {b, g, r, 0};
-    return c;
-}
-
 static void DrawCircle(RGBQUAD *buf, float x, float y, float radius, RGBQUAD color, int buf_width)
 {
-    for(int i = floor(y-radius); i < ceil(y+radius); ++i)
-        for(int j = floor(x-radius); j < ceil(x+radius); ++j)
+    for(int i = static_cast<int>(floor(y-radius)); i < ceil(y+radius); ++i)
+        for(int j = static_cast<int>(floor(x-radius)); j < ceil(x+radius); ++j)
             if ((i-y)*(i-y) + (x-j)*(x-j) <= radius*radius)
                 buf[i*buf_width + j] = color;
 }
@@ -149,8 +155,7 @@ DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
                          j == 0 || j+1 == gs->size.cx);
             buf[gs->size.cx*i + j] = wall ? Color(0,0,0) : Color(255, 255, 255);
         }
-    DrawCircle(buf, 200, 200, 50, Color(255, 0, 0), gs->size.cx);
-    DrawCircle(buf, 230, 200, 35, Color(0, 255, 0), gs->size.cx);
+    gs->DrawGlobules();
     return 0;
 }
 
@@ -182,16 +187,36 @@ RGBQUAD * GlobulesSystem::GetBufferForWrite()
     return bits_buffers[0];
 }
 
-GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height)
+GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count) :
+    globules_count(g_count)
 {
+    ASSERT(buffer_width == buffer_height);
+
     size.cx = buffer_width;
     size.cy = buffer_height;
 
     bits_buffers[0] = new RGBQUAD[size.cx * size.cy];
     memset(bits_buffers[0], 0, size.cx * size.cy * sizeof(RGBQUAD));
+
+    globules = new Globule[globules_count];
 }
 
 GlobulesSystem::~GlobulesSystem()
 {
     delete[] bits_buffers[0];
+    delete[] globules;
+}
+
+void GlobulesSystem::DrawGlobules()
+{
+    for(unsigned i = 0; i < globules_count; ++i)
+    {
+        Globule &g = globules[i];
+        DrawCircle(GetBufferForWrite(), size.cx * g.r.x, size.cy * (1 - g.r.y), sqrtf(size.cx * size.cy) * g.radius, g.color, size.cx);
+    }
+}
+
+void GlobulesSystem::SetGlobule(unsigned num, Globule g)
+{
+    globules[num] = g;
 }
