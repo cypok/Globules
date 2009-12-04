@@ -95,7 +95,7 @@ EXSTYLE WS_EX_APPWINDOW
 CAPTION "Globules"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
-    CTEXT           "",IDC_STATIC,126,18,342,252
+    CTEXT           "",IDC_STATIC2,126,18,342,252
     GROUPBOX        "",IDC_STATIC,120,6,354,270
     GROUPBOX        "Parameters",IDC_STATIC,6,6,108,66
     LTEXT           "Globules count",IDC_STATIC,12,24,48,12,SS_CENTERIMAGE
