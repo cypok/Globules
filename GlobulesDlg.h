@@ -56,4 +56,5 @@ public:
     CSpinButtonCtrl globules_count_spiner;
     afx_msg void OnDeltaposSpin1(NMHDR *pNMHDR, LRESULT *pResult);
     CStatic canvas;
+    void Redraw();
 };

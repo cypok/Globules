@@ -123,8 +123,16 @@ static RGBQUAD RandColor()
 
 static RGBQUAD Color(BYTE r, BYTE g, BYTE b)
 {
-    RGBQUAD c = {r, g, b, 0};
+    RGBQUAD c = {b, g, r, 0};
     return c;
+}
+
+static void DrawCircle(RGBQUAD *buf, float x, float y, float radius, RGBQUAD color, int buf_width)
+{
+    for(int i = floor(y-radius); i < ceil(y+radius); ++i)
+        for(int j = floor(x-radius); j < ceil(x+radius); ++j)
+            if ((i-y)*(i-y) + (x-j)*(x-j) <= radius*radius)
+                buf[i*buf_width + j] = color;
 }
 
 DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
@@ -133,12 +141,28 @@ DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
 
     RGBQUAD *buf = gs->GetBufferForWrite();
     
+    // draw walls
     for(int i = 0; i < gs->size.cy; ++i)
         for(int j = 0; j < gs->size.cx; ++j)
         {
-            buf[gs->size.cx*i + j] = RandColor();
+            bool wall = (i == 0 || i+1 == gs->size.cy ||
+                         j == 0 || j+1 == gs->size.cx);
+            buf[gs->size.cx*i + j] = wall ? Color(0,0,0) : Color(255, 255, 255);
         }
+    DrawCircle(buf, 200, 200, 50, Color(255, 0, 0), gs->size.cx);
+    DrawCircle(buf, 230, 200, 35, Color(0, 255, 0), gs->size.cx);
     return 0;
+}
+
+void CGlobulesDlg::Redraw()
+{
+    static unsigned counter = 0;
+    CRect size;
+    canvas.GetWindowRect(&size);
+    ScreenToClient(&size);
+
+    InvalidateRect(size, 0);
+    UpdateWindow();
 }
 
 void CGlobulesDlg::PostNcDestroy()
