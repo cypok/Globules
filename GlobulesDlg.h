@@ -6,6 +6,7 @@
 #include "afxwin.h"
 
 const UINT MAX_GLOBULES_COUNT = 10;
+const unsigned BUFFERS_COUNT = 5;
 
 struct Vector
 {
@@ -47,7 +48,12 @@ struct Globule
 class GlobulesSystem
 {
 protected:
-    RGBQUAD * bits_buffers[1];
+    RGBQUAD * bits_buffers[BUFFERS_COUNT];
+    volatile bool empty;
+    volatile unsigned reader;
+    volatile unsigned writer;
+    CCriticalSection bufCS;
+
     SIZE size;
     Globule *globules;
     unsigned globules_count;
@@ -62,7 +68,9 @@ public:
     static DWORD WINAPI CalcAndRender(LPVOID param);
     RGBQUAD * GetBufferForRead();
     RGBQUAD * GetBufferForWrite();
-    void DrawGlobules();
+    void ChangeBufferForRead();
+    void ChangeBufferForWrite();
+    void DrawGlobules(RGBQUAD *buf);
     void SetGlobule(unsigned num, Globule g);
     void Stop();
     void CreateThread();

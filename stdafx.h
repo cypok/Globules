@@ -24,6 +24,7 @@
 
 
 #include <afxdisp.h>        // MFC Automation classes
+#include <afxmt.h>          // CCriticalSection
 
 
 

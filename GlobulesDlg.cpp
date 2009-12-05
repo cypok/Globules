@@ -86,6 +86,11 @@ void CGlobulesDlg::OnPaint()
 {
 	CDialog::OnPaint();
 
+    RGBQUAD *buf = gs->GetBufferForRead();
+
+    if (buf == NULL) // it's nothing to draw
+        return;
+
 	CPaintDC dc(&canvas); // device context for painting
 
     CRect size;
@@ -103,21 +108,12 @@ void CGlobulesDlg::OnPaint()
     mem.CreateCompatibleDC(&dc);
     CBitmap *old = mem.SelectObject(&bmp);
 
-    RGBQUAD *buf = gs->GetBufferForRead();
-
     bmp.SetBitmapBits(sizeof(RGBQUAD)*size.Width()*size.Height(), buf);
-
-    //bufCS.Lock();
-    //{
-    //    reader = (reader + 1) % buffers_count;
-    //    if (reader == writer)
-    //        empty = true;
-    //}
-    //bufCS.Unlock();
-
 
     dc.BitBlt(size.left, size.top, size.Width(), size.Height(), &mem, 0, 0, SRCCOPY);
     mem.SelectObject(old);
+
+    gs->ChangeBufferForRead();
 }
 
 void CGlobulesDlg::OnBnClickedButton1()
@@ -153,14 +149,6 @@ void CGlobulesDlg::OnTimer(UINT_PTR nIDEvent)
     CDialog::OnTimer(nIDEvent);
 }
 
-static void DrawCircle(RGBQUAD *buf, float x, float y, float radius, RGBQUAD color, int buf_width)
-{
-    for(int i = static_cast<int>(floor(y-radius)); i < ceil(y+radius); ++i)
-        for(int j = static_cast<int>(floor(x-radius)); j < ceil(x+radius); ++j)
-            if ((i-y)*(i-y) + (x-j)*(x-j) <= radius*radius)
-                buf[i*buf_width + j] = color;
-}
-
 void GlobulesSystem::CreateThread()
 {
     thread = ::CreateThread(NULL, 0, &GlobulesSystem::CalcAndRender, this, 0, NULL);
@@ -180,6 +168,15 @@ DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
     while (gs->working)
     {
         RGBQUAD *buf = gs->GetBufferForWrite();
+
+        if (buf == NULL) // it's nothing to draw
+        {
+            Sleep(100);
+            continue; 
+        }
+
+        gs->globules[0].r += Vector(0.01f, 0.005f);
+
         // draw walls
         for(int i = 0; i < gs->size.cy; ++i)
             for(int j = 0; j < gs->size.cx; ++j)
@@ -188,7 +185,9 @@ DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
                              j == 0 || j+1 == gs->size.cx);
                 buf[gs->size.cx*i + j] = wall ? Color(0,0,0) : Color(255, 255, 255);
             }
-        gs->DrawGlobules();
+        gs->DrawGlobules(buf);
+
+        gs->ChangeBufferForWrite();
     }
     return 0;
 }
@@ -203,12 +202,30 @@ void CGlobulesDlg::PostNcDestroy()
 
 RGBQUAD * GlobulesSystem::GetBufferForRead()
 {
-    return bits_buffers[0];
+    return empty ? NULL : bits_buffers[reader];
 }
 
 RGBQUAD * GlobulesSystem::GetBufferForWrite()
 {
-    return bits_buffers[0];
+    return (!empty && reader == writer) ? NULL : bits_buffers[writer];
+}
+
+void GlobulesSystem::ChangeBufferForRead()
+{
+    bufCS.Lock();
+    reader = (reader + 1) % BUFFERS_COUNT;
+    if (reader == writer)
+        empty = true;
+    bufCS.Unlock();
+}
+
+void GlobulesSystem::ChangeBufferForWrite()
+{
+    bufCS.Lock();
+    writer = (writer + 1) % BUFFERS_COUNT;
+    if (empty)
+        empty = false;
+    bufCS.Unlock();
 }
 
 GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count) :
@@ -219,8 +236,12 @@ GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g
     size.cx = buffer_width;
     size.cy = buffer_height;
 
-    bits_buffers[0] = new RGBQUAD[size.cx * size.cy];
-    memset(bits_buffers[0], 0, size.cx * size.cy * sizeof(RGBQUAD));
+    for(unsigned i = 0; i < BUFFERS_COUNT; ++i)
+        bits_buffers[i] = new RGBQUAD[size.cx * size.cy];
+
+    empty = true;
+    reader = 0;
+    writer = 0;
 
     globules = new Globule[globules_count];
 
@@ -233,16 +254,25 @@ GlobulesSystem::~GlobulesSystem()
     delete[] globules;
 }
 
-void GlobulesSystem::DrawGlobules()
+static void DrawCircle(RGBQUAD *buf, float x, float y, float radius, RGBQUAD color, int buf_width, int buf_height)
+{
+    for(int i = max(0, static_cast<int>(floor(y-radius))); i < min(buf_height-1, ceil(y+radius)); ++i)
+        for(int j = max(0, static_cast<int>(floor(x-radius))); j < min(buf_width-1, ceil(x+radius)); ++j)
+            if ((i-y)*(i-y) + (x-j)*(x-j) <= radius*radius)
+                buf[i*buf_width + j] = color;
+}
+
+void GlobulesSystem::DrawGlobules(RGBQUAD *buf)
 {
     for(unsigned i = 0; i < globules_count; ++i)
     {
         Globule &g = globules[i];
-        DrawCircle(GetBufferForWrite(),
+        DrawCircle(buf,
             static_cast<float>(size.cx) * g.r.x,
             static_cast<float>(size.cy) * (1 - g.r.y),
-            sqrtf(size.cx * size.cy) * g.radius,
-            g.color, size.cx);
+            sqrtf(static_cast<float>(size.cx * size.cy)) * g.radius,
+            g.color,
+            size.cx, size.cy);
     }
 }
 
