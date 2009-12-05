@@ -80,6 +80,7 @@ struct Globule
     Vector r, v;
     float radius;
     RGBQUAD color;
+    inline float mass() { return radius * radius * radius; }
 };
 
 class GlobulesSystem

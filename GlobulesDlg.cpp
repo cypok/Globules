@@ -190,6 +190,14 @@ void GlobulesSystem::CollideWithWalls(unsigned i)
         g.v.y *= -1;
 }
 
+static void CentralCollision(Vector n21, float m1, float m2, Vector v1, Vector v2, Vector *u1, Vector *u2)
+{
+    Vector V = (v1*m1 + v2*m2)/(m1 + m2);
+    float energy = m1*((v1-V)*(v1-V)) + m2*((v2-V)*(v2-V));
+    *u1 = V - n21 * sqrtf(energy/m1/(1+m1/m2));
+    *u2 = V + n21 * sqrtf(energy/m2/(1+m2/m1));
+}
+
 void GlobulesSystem::CollideThem(unsigned i, unsigned j)
 {
     Globule &g1 = globules[i], &g2 = globules[j];
@@ -205,9 +213,12 @@ void GlobulesSystem::CollideThem(unsigned i, unsigned j)
 
         Vector v1 = n * a1;
         Vector v2 = n * a2;
+        Vector u1, u2;
 
-        g1.v += v2 - v1;
-        g2.v += v1 - v2;
+        CentralCollision(n, g1.mass(), g2.mass(), v1, v2, &u1, &u2);
+
+        g1.v += u1 - v1;
+        g2.v += u2 - v2;
     }
 }
 
