@@ -11,8 +11,8 @@ const unsigned TIMER_PERIOD = 10;
 
 struct Vector
 {
-    float x, y;
-    Vector(float x = 0.0f, float y = 0.0f) : x(x), y(y) {}
+    double x, y;
+    Vector(double x = 0.0f, double y = 0.0f) : x(x), y(y) {}
     Vector & operator+=(const Vector & other)
     {
         x += other.x;
@@ -41,46 +41,46 @@ struct Vector
     {
         return Vector(-this->x, -this->y);
     }
-    Vector & operator*=(const float a)
+    Vector & operator*=(const double a)
     {
         x *= a;
         y *= a;
         return *this;
     }
-    Vector operator*(const float a) const
+    Vector operator*(const double a) const
     {
         Vector result = *this;
         result *= a;
         return result;
     }
-    Vector & operator/=(const float a)
+    Vector & operator/=(const double a)
     {
         x /= a;
         y /= a;
         return *this;
     }
-    Vector operator/(const float a) const
+    Vector operator/(const double a) const
     {
         Vector result = *this;
         result /= a;
         return result;
     }
-    float operator*(const Vector & other) const
+    double operator*(const Vector & other) const
     {
         return x*other.x + y*other.y;
     }
-    float abs()
+    double abs()
     {
-        return sqrtf(*this * *this);
+        return sqrt(*this * *this);
     }
 };
 
 struct Globule
 {
     Vector r, v;
-    float radius;
+    double radius;
     RGBQUAD color;
-    inline float mass() { return radius * radius * radius; }
+    inline double mass() { return radius * radius; }
 };
 
 class GlobulesSystem
@@ -93,13 +93,16 @@ protected:
     CCriticalSection bufCS;
 
     SIZE size;
-    std::vector<Globule> globules;
     volatile bool working;
     HANDLE thread;
 
+    std::vector<Globule> globules;
+    double gravity;
+
     void CollideWithWalls(unsigned i);
     void CollideThem(unsigned i, unsigned j);
-    void MoveOne(unsigned i, float delta);
+    void AccelerateOne(unsigned i, double delta);
+    void MoveOne(unsigned i, double delta);
     void ProcessPhysics();
 
     void AddRandomGlobule();
@@ -123,6 +126,7 @@ public:
     void ChangeBufferForRead();
 
     void SetGlobulesCount(unsigned count);
+    void SetGravity(double g);
 };
 
 
@@ -163,4 +167,5 @@ public:
     void Redraw();
     afx_msg void OnTimer(UINT_PTR nIDEvent);
     void LoadDataToGS();
+    afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 };

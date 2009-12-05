@@ -9,9 +9,9 @@
 #define new DEBUG_NEW
 #endif
 
-static float randf()
+static double randf()
 {
-    return static_cast<float>(rand()) / RAND_MAX;
+    return static_cast<double>(rand()) / RAND_MAX;
 }
 
 static RGBQUAD RandColor()
@@ -51,6 +51,7 @@ BEGIN_MESSAGE_MAP(CGlobulesDlg, CDialog)
     ON_BN_CLICKED(IDC_BUTTON1, &CGlobulesDlg::OnBnClickedButton1)
     ON_NOTIFY(UDN_DELTAPOS, IDC_SPIN1, &CGlobulesDlg::OnDeltaposSpin1)
     ON_WM_TIMER()
+    ON_WM_HSCROLL()
 END_MESSAGE_MAP()
 
 
@@ -66,7 +67,7 @@ BOOL CGlobulesDlg::OnInitDialog()
     globules_count = 5;
 
     gravity_slider.SetRange(0, 50, TRUE);
-    gravity_slider.SetPos(10);
+    gravity_slider.SetPos(5);
 
     UpdateData(FALSE);
 
@@ -77,6 +78,7 @@ BOOL CGlobulesDlg::OnInitDialog()
     ScreenToClient(&size);
 
     gs = new GlobulesSystem(size.Width(), size.Height(), globules_count);
+    LoadDataToGS();
     gs->CreateThread();
 
 	return TRUE;
@@ -183,19 +185,19 @@ void GlobulesSystem::CollideWithWalls(unsigned i)
 {
     Globule &g = globules[i];
 
-    if((g.r.x < 0.0f + g.radius && g.v.x < 0) || (g.r.x > 1.0f - g.radius && g.v.x > 0))
+    if((g.r.x < 0.0 + g.radius && g.v.x < 0) || (g.r.x > 1.0 - g.radius && g.v.x > 0))
         g.v.x *= -1;
 
-    if((g.r.y < 0.0f + g.radius && g.v.y < 0) || (g.r.y > 1.0f - g.radius && g.v.y > 0))
+    if((g.r.y < 0.0 + g.radius && g.v.y < 0) || (g.r.y > 1.0 - g.radius && g.v.y > 0))
         g.v.y *= -1;
 }
 
-static void CentralCollision(Vector n21, float m1, float m2, Vector v1, Vector v2, Vector *u1, Vector *u2)
+static void CentralCollision(Vector n21, double m1, double m2, Vector v1, Vector v2, Vector *u1, Vector *u2)
 {
     Vector V = (v1*m1 + v2*m2)/(m1 + m2);
-    float energy = m1*((v1-V)*(v1-V)) + m2*((v2-V)*(v2-V));
-    *u1 = V - n21 * sqrtf(energy/m1/(1+m1/m2));
-    *u2 = V + n21 * sqrtf(energy/m2/(1+m2/m1));
+    double energy = m1*((v1-V)*(v1-V)) + m2*((v2-V)*(v2-V));
+    *u1 = V - n21 * sqrt(energy/m1/(1+m1/m2));
+    *u2 = V + n21 * sqrt(energy/m2/(1+m2/m1));
 }
 
 void GlobulesSystem::CollideThem(unsigned i, unsigned j)
@@ -204,8 +206,8 @@ void GlobulesSystem::CollideThem(unsigned i, unsigned j)
     if( (g1.r - g2.r).abs() < g1.radius + g2.radius )
     {
         Vector n = (g2.r - g1.r)/(g2.r - g1.r).abs();
-        float a1 = g1.v * n;
-        float a2 = g2.v * n;
+        double a1 = g1.v * n;
+        double a2 = g2.v * n;
 
         if( (a1 < 0 && a1 < a2) ||
             (a2 > 0 && a2 > a1))
@@ -222,7 +224,12 @@ void GlobulesSystem::CollideThem(unsigned i, unsigned j)
     }
 }
 
-void GlobulesSystem::MoveOne(unsigned i, float delta)
+void GlobulesSystem::AccelerateOne(unsigned i, double delta)
+{
+    globules[i].v += Vector(0, -1) * gravity * delta;
+}
+
+void GlobulesSystem::MoveOne(unsigned i, double delta)
 {
     globules[i].r += globules[i].v * delta;
 }
@@ -231,8 +238,11 @@ void GlobulesSystem::ProcessPhysics()
 {
     static ULONGLONG before_now = GetTimeInMS();
     ULONGLONG now = GetTimeInMS();
-    float delta = static_cast<float>(now - before_now) / 1000.0f;
+    double delta = static_cast<double>(now - before_now) / 1000.0;
     before_now = now;
+
+    for(unsigned i = 0; i < globules.size(); ++i)
+        AccelerateOne(i, delta);
 
     for(unsigned i = 0; i < globules.size(); ++i)
         CollideWithWalls(i);
@@ -332,11 +342,11 @@ void GlobulesSystem::AddRandomGlobule()
 {
     Globule g;
     g.color = RandColor();
-    g.radius = 0.01f + randf() * 0.1f; // 10..50
-    g.r.x = g.radius + (1.0f - 2*g.radius) * randf();
-    g.r.y = g.radius + (1.0f - 2*g.radius) * randf();
-    g.v.x = -0.2f + 0.4f * randf();
-    g.v.y = -0.2f + 0.4f * randf();
+    g.radius = 0.01f + randf() * 0.1; // 10..50
+    g.r.x = g.radius + (1.0 - 2*g.radius) * randf();
+    g.r.y = g.radius + (1.0 - 2*g.radius) * randf();
+    g.v.x = -0.05 + 0.1 * randf();
+    g.v.y = -0.05 + 0.1 * randf();
 
     globules.push_back(g);
 }
@@ -345,6 +355,11 @@ void GlobulesSystem::RemoveGlobule()
 {
     if(!globules.empty())
         globules.pop_back();
+}
+
+void GlobulesSystem::SetGravity(double g)
+{
+    gravity = g;
 }
 
 GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count)
@@ -366,6 +381,7 @@ GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g
         AddRandomGlobule();
 
     thread = NULL;
+    gravity = 0;
 }
 
 GlobulesSystem::~GlobulesSystem()
@@ -381,7 +397,7 @@ void GlobulesSystem::SetGlobulesCount(unsigned count)
         RemoveGlobule();
 }
 
-static void DrawCircle(RGBQUAD *buf, float x, float y, float radius, RGBQUAD color, int buf_width, int buf_height)
+static void DrawCircle(RGBQUAD *buf, double x, double y, double radius, RGBQUAD color, int buf_width, int buf_height)
 {
     for(int i = max(0, static_cast<int>(floor(y-radius))); i < min(buf_height-1, ceil(y+radius)); ++i)
         for(int j = max(0, static_cast<int>(floor(x-radius))); j < min(buf_width-1, ceil(x+radius)); ++j)
@@ -395,9 +411,9 @@ void GlobulesSystem::DrawGlobules(RGBQUAD *buf)
     {
         Globule &g = globules[i];
         DrawCircle(buf,
-            static_cast<float>(size.cx) * g.r.x,
-            static_cast<float>(size.cy) * (1 - g.r.y),
-            sqrtf(static_cast<float>(size.cx * size.cy)) * g.radius,
+            static_cast<double>(size.cx) * g.r.x,
+            static_cast<double>(size.cy) * (1 - g.r.y),
+            sqrt(static_cast<double>(size.cx * size.cy)) * g.radius,
             g.color,
             size.cx, size.cy);
     }
@@ -406,4 +422,14 @@ void GlobulesSystem::DrawGlobules(RGBQUAD *buf)
 void CGlobulesDlg::LoadDataToGS()
 {
     gs->SetGlobulesCount(globules_count);
+    gs->SetGravity(static_cast<double>(gravity_slider.GetPos())/25);
+}
+
+void CGlobulesDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
+{
+    // TODO: Add your message handler code here and/or call default
+    UpdateData();
+    LoadDataToGS();
+
+    CDialog::OnHScroll(nSBCode, nPos, pScrollBar);
 }
