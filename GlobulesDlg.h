@@ -6,7 +6,7 @@
 #include "afxwin.h"
 
 const UINT MAX_GLOBULES_COUNT = 10;
-const unsigned BUFFERS_COUNT = 5;
+const unsigned BUFFERS_COUNT = 2;
 
 struct Vector
 {
@@ -55,13 +55,12 @@ protected:
     CCriticalSection bufCS;
 
     SIZE size;
-    Globule *globules;
+    std::vector<Globule> globules;
     unsigned globules_count;
     volatile bool working;
     HANDLE thread;
 
 public:
-
     GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count);
     ~GlobulesSystem();
 
@@ -71,7 +70,9 @@ public:
     void ChangeBufferForRead();
     void ChangeBufferForWrite();
     void DrawGlobules(RGBQUAD *buf);
-    void SetGlobule(unsigned num, Globule g);
+    void AddRandomGlobule();
+    void RemoveGlobule();
+    void SetGlobulesCount(unsigned count);
     void Stop();
     void CreateThread();
 };
@@ -113,4 +114,5 @@ public:
     CStatic canvas;
     void Redraw();
     afx_msg void OnTimer(UINT_PTR nIDEvent);
+    void LoadDataToGS();
 };

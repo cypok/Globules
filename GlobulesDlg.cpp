@@ -9,9 +9,14 @@
 #define new DEBUG_NEW
 #endif
 
+static float randf()
+{
+    return static_cast<float>(rand()) / RAND_MAX;
+}
+
 static RGBQUAD RandColor()
 {
-    RGBQUAD c = {rand() % 256, rand() % 256, rand() % 256, 0};
+    RGBQUAD c = {rand() % 200, rand() % 200, rand() % 200, 0};
     return c;
 }
 
@@ -27,6 +32,7 @@ CGlobulesDlg::CGlobulesDlg(CWnd* pParent /*=NULL*/)
     , globules_count(1)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+    srand( (unsigned)time( NULL ) );
 }
 
 void CGlobulesDlg::DoDataExchange(CDataExchange* pDX)
@@ -57,7 +63,7 @@ BOOL CGlobulesDlg::OnInitDialog()
 
 
     template_name = _T("[none]");
-    globules_count = 2;
+    globules_count = 10;
 
     gravity_slider.SetRange(0, 50, TRUE);
     gravity_slider.SetPos(10);
@@ -69,14 +75,8 @@ BOOL CGlobulesDlg::OnInitDialog()
     CRect size;
     canvas.GetWindowRect(&size);
     ScreenToClient(&size);
-    gs = new GlobulesSystem(size.Width(), size.Height(), globules_count);
-    
-    Globule g = {Vector(0.1f, 0.1f), Vector(1.0f, 2.0f), 0.05f, Color(255, 0, 0)};
-    gs->SetGlobule(0, g);
-    g.r = Vector(0.9f, 0.5f);
-    g.color = Color(0, 0, 255);
-    gs->SetGlobule(1, g);
 
+    gs = new GlobulesSystem(size.Width(), size.Height(), globules_count);
     gs->CreateThread();
 
 	return TRUE;
@@ -119,16 +119,20 @@ void CGlobulesDlg::OnPaint()
 void CGlobulesDlg::OnBnClickedButton1()
 {
     UpdateData();
+    LoadDataToGS();
 }
 
 void CGlobulesDlg::OnDeltaposSpin1(NMHDR *pNMHDR, LRESULT *pResult)
 {
     LPNMUPDOWN pNMUpDown = reinterpret_cast<LPNMUPDOWN>(pNMHDR);
-    // TODO: Add your control notification handler code here
+
     int count = globules_count - pNMUpDown->iDelta;
     globules_count = min(max(0,count), MAX_GLOBULES_COUNT);
+
     UpdateData(FALSE);
-    // TODO: range!
+
+    LoadDataToGS();
+
     *pResult = 0;
 }
 
@@ -175,7 +179,6 @@ DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
             continue; 
         }
 
-        gs->globules[0].r += Vector(0.01f, 0.005f);
 
         // draw walls
         for(int i = 0; i < gs->size.cy; ++i)
@@ -234,13 +237,38 @@ void GlobulesSystem::ChangeBufferForWrite()
     bufCS.Unlock();
 }
 
-GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count) :
-    globules_count(g_count)
+void GlobulesSystem::AddRandomGlobule()
+{
+    Globule g;
+    g.color = RandColor();
+    g.radius = 0.01f + randf() * 0.1f; // 10..50
+    g.r.x = g.radius + (1.0f - 2*g.radius) * randf();
+    g.r.y = g.radius + (1.0f - 2*g.radius) * randf();
+    g.v.x = -50.0f + 100.0f * randf();
+    g.v.y = -50.0f + 100.0f * randf();
+
+    globules.push_back(g);
+    ++globules_count;
+    ASSERT(globules_count == globules.size());
+}
+
+void GlobulesSystem::RemoveGlobule()
+{
+    if(!globules.empty())
+    {
+        globules.pop_back();
+        --globules_count;
+    }
+    ASSERT(globules_count == globules.size());
+}
+
+GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count)
 {
     ASSERT(buffer_width == buffer_height);
 
     size.cx = buffer_width;
     size.cy = buffer_height;
+
 
     for(unsigned i = 0; i < BUFFERS_COUNT; ++i)
         bits_buffers[i] = new RGBQUAD[size.cx * size.cy];
@@ -249,7 +277,9 @@ GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g
     reader = 0;
     writer = 0;
 
-    globules = new Globule[globules_count];
+    globules_count = 0;
+    for(unsigned i = 0; i < g_count; ++i)
+        AddRandomGlobule();
 
     thread = NULL;
 }
@@ -257,7 +287,14 @@ GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g
 GlobulesSystem::~GlobulesSystem()
 {
     delete[] bits_buffers[0];
-    delete[] globules;
+}
+
+void GlobulesSystem::SetGlobulesCount(unsigned count)
+{
+    while( count > globules_count )
+        AddRandomGlobule();
+    while( count < globules_count )
+        RemoveGlobule();
 }
 
 static void DrawCircle(RGBQUAD *buf, float x, float y, float radius, RGBQUAD color, int buf_width, int buf_height)
@@ -282,7 +319,7 @@ void GlobulesSystem::DrawGlobules(RGBQUAD *buf)
     }
 }
 
-void GlobulesSystem::SetGlobule(unsigned num, Globule g)
+void CGlobulesDlg::LoadDataToGS()
 {
-    globules[num] = g;
+    gs->SetGlobulesCount(globules_count);
 }
