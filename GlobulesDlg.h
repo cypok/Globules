@@ -7,6 +7,7 @@
 
 const UINT MAX_GLOBULES_COUNT = 10;
 const unsigned BUFFERS_COUNT = 2;
+const unsigned TIMER_PERIOD = 10;
 
 struct Vector
 {
@@ -36,6 +37,18 @@ struct Vector
         result -= other;
         return result;
     }
+    Vector & operator*=(const float a)
+    {
+        x *= a;
+        y *= a;
+        return *this;
+    }
+    Vector operator*(const float a) const
+    {
+        Vector result = *this;
+        result *= a;
+        return result;
+    }
 };
 
 struct Globule
@@ -56,25 +69,35 @@ protected:
 
     SIZE size;
     std::vector<Globule> globules;
-    unsigned globules_count;
     volatile bool working;
     HANDLE thread;
+
+    void CollideWithWalls(unsigned i);
+    void CollideWithOthers(unsigned i);
+    void MoveOne(unsigned i, float delta);
+    void ProcessPhysics();
+
+    void AddRandomGlobule();
+    void RemoveGlobule();
+
+    void DrawGlobules(RGBQUAD *buf);
+
+    RGBQUAD * GetBufferForWrite();
+    void ChangeBufferForWrite();
 
 public:
     GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count);
     ~GlobulesSystem();
 
-    static DWORD WINAPI CalcAndRender(LPVOID param);
-    RGBQUAD * GetBufferForRead();
-    RGBQUAD * GetBufferForWrite();
-    void ChangeBufferForRead();
-    void ChangeBufferForWrite();
-    void DrawGlobules(RGBQUAD *buf);
-    void AddRandomGlobule();
-    void RemoveGlobule();
-    void SetGlobulesCount(unsigned count);
-    void Stop();
     void CreateThread();
+    void Stop();
+
+    static DWORD WINAPI CalcAndRender(LPVOID param);
+
+    const RGBQUAD * GetBufferForRead();
+    void ChangeBufferForRead();
+
+    void SetGlobulesCount(unsigned count);
 };
 
 

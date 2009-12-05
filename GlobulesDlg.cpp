@@ -63,14 +63,14 @@ BOOL CGlobulesDlg::OnInitDialog()
 
 
     template_name = _T("[none]");
-    globules_count = 10;
+    globules_count = 5;
 
     gravity_slider.SetRange(0, 50, TRUE);
     gravity_slider.SetPos(10);
 
     UpdateData(FALSE);
 
-    SetTimer(0, 100, NULL);
+    SetTimer(0, TIMER_PERIOD, NULL);
 
     CRect size;
     canvas.GetWindowRect(&size);
@@ -86,7 +86,7 @@ void CGlobulesDlg::OnPaint()
 {
 	CDialog::OnPaint();
 
-    RGBQUAD *buf = gs->GetBufferForRead();
+    const RGBQUAD *buf = gs->GetBufferForRead();
 
 	CPaintDC dc(&canvas); // device context for painting
 
@@ -164,6 +164,58 @@ void GlobulesSystem::Stop()
     WaitForSingleObject(thread, INFINITE);
 }
 
+static ULONGLONG GetTimeInMS()
+{
+    SYSTEMTIME system_time;
+    GetSystemTime( &system_time );
+
+    FILETIME file_time;
+    SystemTimeToFileTime( &system_time, &file_time );
+
+    ULARGE_INTEGER uli;
+    uli.LowPart = file_time.dwLowDateTime;
+    uli.HighPart = file_time.dwHighDateTime;
+
+    return uli.QuadPart/10000;
+}
+
+void GlobulesSystem::CollideWithWalls(unsigned i)
+{
+    Globule &g = globules[i];
+
+    if((g.r.x < 0.0f + g.radius && g.v.x < 0) || (g.r.x > 1.0f - g.radius && g.v.x > 0))
+        g.v.x *= -1;
+
+    if((g.r.y < 0.0f + g.radius && g.v.y < 0) || (g.r.y > 1.0f - g.radius && g.v.y > 0))
+        g.v.y *= -1;
+}
+
+void GlobulesSystem::CollideWithOthers(unsigned i)
+{
+}
+
+void GlobulesSystem::MoveOne(unsigned i, float delta)
+{
+    globules[i].r += globules[i].v * delta;
+}
+
+void GlobulesSystem::ProcessPhysics()
+{
+    static ULONGLONG before_now = GetTimeInMS();
+    ULONGLONG now = GetTimeInMS();
+    float delta = static_cast<float>(now - before_now) / 1000.0f;
+    before_now = now;
+
+    for(unsigned i = 0; i < globules.size(); ++i)
+        CollideWithWalls(i);
+    
+    for(unsigned i = 0; i < globules.size(); ++i)
+        CollideWithOthers(i);
+
+    for(unsigned i = 0; i < globules.size(); ++i)
+        MoveOne(i, delta);
+}
+
 DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
 {
     GlobulesSystem *gs = reinterpret_cast<GlobulesSystem *>(param);
@@ -174,11 +226,21 @@ DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
         RGBQUAD *buf = gs->GetBufferForWrite();
 
         if (buf == NULL) // it's nothing to draw
-        {
-            Sleep(100);
             continue; 
-        }
 
+        gs->ProcessPhysics();
+
+        // draw background
+        for(int i = 0; i < gs->size.cy; ++i)
+            for(int j = 0; j < gs->size.cx; ++j)
+            {
+                bool wall = (i == 0 || i+1 == gs->size.cy ||
+                             j == 0 || j+1 == gs->size.cx);
+                if(!wall)
+                    buf[gs->size.cx*i + j] = Color(255, 255, 255);
+            }
+
+        gs->DrawGlobules(buf);
 
         // draw walls
         for(int i = 0; i < gs->size.cy; ++i)
@@ -186,9 +248,9 @@ DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
             {
                 bool wall = (i == 0 || i+1 == gs->size.cy ||
                              j == 0 || j+1 == gs->size.cx);
-                buf[gs->size.cx*i + j] = wall ? Color(0,0,0) : Color(255, 255, 255);
+                if(wall)
+                    buf[gs->size.cx*i + j] = Color(0, 0, 0);
             }
-        gs->DrawGlobules(buf);
 
         gs->ChangeBufferForWrite();
     }
@@ -203,7 +265,7 @@ void CGlobulesDlg::PostNcDestroy()
     CDialog::PostNcDestroy();
 }
 
-RGBQUAD * GlobulesSystem::GetBufferForRead()
+const RGBQUAD * GlobulesSystem::GetBufferForRead()
 {
     bufCS.Lock();
     RGBQUAD * res = empty ? NULL : bits_buffers[reader];
@@ -244,22 +306,16 @@ void GlobulesSystem::AddRandomGlobule()
     g.radius = 0.01f + randf() * 0.1f; // 10..50
     g.r.x = g.radius + (1.0f - 2*g.radius) * randf();
     g.r.y = g.radius + (1.0f - 2*g.radius) * randf();
-    g.v.x = -50.0f + 100.0f * randf();
-    g.v.y = -50.0f + 100.0f * randf();
+    g.v.x = -0.2f + 0.4f * randf();
+    g.v.y = -0.2f + 0.4f * randf();
 
     globules.push_back(g);
-    ++globules_count;
-    ASSERT(globules_count == globules.size());
 }
 
 void GlobulesSystem::RemoveGlobule()
 {
     if(!globules.empty())
-    {
         globules.pop_back();
-        --globules_count;
-    }
-    ASSERT(globules_count == globules.size());
 }
 
 GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count)
@@ -277,7 +333,6 @@ GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g
     reader = 0;
     writer = 0;
 
-    globules_count = 0;
     for(unsigned i = 0; i < g_count; ++i)
         AddRandomGlobule();
 
@@ -291,9 +346,9 @@ GlobulesSystem::~GlobulesSystem()
 
 void GlobulesSystem::SetGlobulesCount(unsigned count)
 {
-    while( count > globules_count )
+    while( count > globules.size() )
         AddRandomGlobule();
-    while( count < globules_count )
+    while( count < globules.size() )
         RemoveGlobule();
 }
 
@@ -307,7 +362,7 @@ static void DrawCircle(RGBQUAD *buf, float x, float y, float radius, RGBQUAD col
 
 void GlobulesSystem::DrawGlobules(RGBQUAD *buf)
 {
-    for(unsigned i = 0; i < globules_count; ++i)
+    for(unsigned i = 0; i < globules.size(); ++i)
     {
         Globule &g = globules[i];
         DrawCircle(buf,
