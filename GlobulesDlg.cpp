@@ -44,6 +44,7 @@ BEGIN_MESSAGE_MAP(CGlobulesDlg, CDialog)
 	ON_WM_PAINT()
     ON_BN_CLICKED(IDC_BUTTON1, &CGlobulesDlg::OnBnClickedButton1)
     ON_NOTIFY(UDN_DELTAPOS, IDC_SPIN1, &CGlobulesDlg::OnDeltaposSpin1)
+    ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -63,18 +64,20 @@ BOOL CGlobulesDlg::OnInitDialog()
 
     UpdateData(FALSE);
 
+    SetTimer(0, 100, NULL);
+
     CRect size;
     canvas.GetWindowRect(&size);
     ScreenToClient(&size);
     gs = new GlobulesSystem(size.Width(), size.Height(), globules_count);
     
-    Globule g = {Vector(0.1, 0.1), Vector(1, 2), 0.05, Color(255, 0, 0)};
+    Globule g = {Vector(0.1f, 0.1f), Vector(1.0f, 2.0f), 0.05f, Color(255, 0, 0)};
     gs->SetGlobule(0, g);
-    g.r = Vector(0.9, 0.5);
+    g.r = Vector(0.9f, 0.5f);
     g.color = Color(0, 0, 255);
     gs->SetGlobule(1, g);
 
-    CreateThread(NULL, 0, &GlobulesSystem::CalcAndRender, gs, 0, NULL);
+    gs->CreateThread();
 
 	return TRUE;
 }
@@ -133,32 +136,6 @@ void CGlobulesDlg::OnDeltaposSpin1(NMHDR *pNMHDR, LRESULT *pResult)
     *pResult = 0;
 }
 
-static void DrawCircle(RGBQUAD *buf, float x, float y, float radius, RGBQUAD color, int buf_width)
-{
-    for(int i = static_cast<int>(floor(y-radius)); i < ceil(y+radius); ++i)
-        for(int j = static_cast<int>(floor(x-radius)); j < ceil(x+radius); ++j)
-            if ((i-y)*(i-y) + (x-j)*(x-j) <= radius*radius)
-                buf[i*buf_width + j] = color;
-}
-
-DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
-{
-    GlobulesSystem *gs = reinterpret_cast<GlobulesSystem *>(param);
-
-    RGBQUAD *buf = gs->GetBufferForWrite();
-    
-    // draw walls
-    for(int i = 0; i < gs->size.cy; ++i)
-        for(int j = 0; j < gs->size.cx; ++j)
-        {
-            bool wall = (i == 0 || i+1 == gs->size.cy ||
-                         j == 0 || j+1 == gs->size.cx);
-            buf[gs->size.cx*i + j] = wall ? Color(0,0,0) : Color(255, 255, 255);
-        }
-    gs->DrawGlobules();
-    return 0;
-}
-
 void CGlobulesDlg::Redraw()
 {
     static unsigned counter = 0;
@@ -170,8 +147,55 @@ void CGlobulesDlg::Redraw()
     UpdateWindow();
 }
 
+void CGlobulesDlg::OnTimer(UINT_PTR nIDEvent)
+{
+    Redraw();
+    CDialog::OnTimer(nIDEvent);
+}
+
+static void DrawCircle(RGBQUAD *buf, float x, float y, float radius, RGBQUAD color, int buf_width)
+{
+    for(int i = static_cast<int>(floor(y-radius)); i < ceil(y+radius); ++i)
+        for(int j = static_cast<int>(floor(x-radius)); j < ceil(x+radius); ++j)
+            if ((i-y)*(i-y) + (x-j)*(x-j) <= radius*radius)
+                buf[i*buf_width + j] = color;
+}
+
+void GlobulesSystem::CreateThread()
+{
+    thread = ::CreateThread(NULL, 0, &GlobulesSystem::CalcAndRender, this, 0, NULL);
+}
+
+void GlobulesSystem::Stop()
+{
+    working = false;
+    WaitForSingleObject(thread, INFINITE);
+}
+
+DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
+{
+    GlobulesSystem *gs = reinterpret_cast<GlobulesSystem *>(param);
+    gs->working = true;
+    
+    while (gs->working)
+    {
+        RGBQUAD *buf = gs->GetBufferForWrite();
+        // draw walls
+        for(int i = 0; i < gs->size.cy; ++i)
+            for(int j = 0; j < gs->size.cx; ++j)
+            {
+                bool wall = (i == 0 || i+1 == gs->size.cy ||
+                             j == 0 || j+1 == gs->size.cx);
+                buf[gs->size.cx*i + j] = wall ? Color(0,0,0) : Color(255, 255, 255);
+            }
+        gs->DrawGlobules();
+    }
+    return 0;
+}
+
 void CGlobulesDlg::PostNcDestroy()
 {
+    gs->Stop();
     delete gs;
 
     CDialog::PostNcDestroy();
@@ -199,6 +223,8 @@ GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g
     memset(bits_buffers[0], 0, size.cx * size.cy * sizeof(RGBQUAD));
 
     globules = new Globule[globules_count];
+
+    thread = NULL;
 }
 
 GlobulesSystem::~GlobulesSystem()
@@ -212,7 +238,11 @@ void GlobulesSystem::DrawGlobules()
     for(unsigned i = 0; i < globules_count; ++i)
     {
         Globule &g = globules[i];
-        DrawCircle(GetBufferForWrite(), size.cx * g.r.x, size.cy * (1 - g.r.y), sqrtf(size.cx * size.cy) * g.radius, g.color, size.cx);
+        DrawCircle(GetBufferForWrite(),
+            static_cast<float>(size.cx) * g.r.x,
+            static_cast<float>(size.cy) * (1 - g.r.y),
+            sqrtf(size.cx * size.cy) * g.radius,
+            g.color, size.cx);
     }
 }
 

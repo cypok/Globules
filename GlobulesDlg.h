@@ -51,8 +51,11 @@ protected:
     SIZE size;
     Globule *globules;
     unsigned globules_count;
+    volatile bool working;
+    HANDLE thread;
 
 public:
+
     GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count);
     ~GlobulesSystem();
 
@@ -61,6 +64,8 @@ public:
     RGBQUAD * GetBufferForWrite();
     void DrawGlobules();
     void SetGlobule(unsigned num, Globule g);
+    void Stop();
+    void CreateThread();
 };
 
 
@@ -99,4 +104,5 @@ public:
     afx_msg void OnDeltaposSpin1(NMHDR *pNMHDR, LRESULT *pResult);
     CStatic canvas;
     void Redraw();
+    afx_msg void OnTimer(UINT_PTR nIDEvent);
 };
