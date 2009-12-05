@@ -190,8 +190,25 @@ void GlobulesSystem::CollideWithWalls(unsigned i)
         g.v.y *= -1;
 }
 
-void GlobulesSystem::CollideWithOthers(unsigned i)
+void GlobulesSystem::CollideThem(unsigned i, unsigned j)
 {
+    Globule &g1 = globules[i], &g2 = globules[j];
+    if( (g1.r - g2.r).abs() < g1.radius + g2.radius )
+    {
+        Vector n = (g2.r - g1.r)/(g2.r - g1.r).abs();
+        float a1 = g1.v * n;
+        float a2 = g2.v * n;
+
+        if( (a1 < 0 && a1 < a2) ||
+            (a2 > 0 && a2 > a1))
+            return;
+
+        Vector v1 = n * a1;
+        Vector v2 = n * a2;
+
+        g1.v += v2 - v1;
+        g2.v += v1 - v2;
+    }
 }
 
 void GlobulesSystem::MoveOne(unsigned i, float delta)
@@ -210,7 +227,8 @@ void GlobulesSystem::ProcessPhysics()
         CollideWithWalls(i);
     
     for(unsigned i = 0; i < globules.size(); ++i)
-        CollideWithOthers(i);
+        for(unsigned j = 0; j < i; ++j)
+            CollideThem(i, j);
 
     for(unsigned i = 0; i < globules.size(); ++i)
         MoveOne(i, delta);
@@ -223,12 +241,12 @@ DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
     
     while (gs->working)
     {
+        gs->ProcessPhysics();
+
         RGBQUAD *buf = gs->GetBufferForWrite();
 
         if (buf == NULL) // it's nothing to draw
             continue; 
-
-        gs->ProcessPhysics();
 
         // draw background
         for(int i = 0; i < gs->size.cy; ++i)

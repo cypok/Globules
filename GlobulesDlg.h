@@ -37,6 +37,10 @@ struct Vector
         result -= other;
         return result;
     }
+    Vector operator-() const
+    {
+        return Vector(-this->x, -this->y);
+    }
     Vector & operator*=(const float a)
     {
         x *= a;
@@ -48,6 +52,26 @@ struct Vector
         Vector result = *this;
         result *= a;
         return result;
+    }
+    Vector & operator/=(const float a)
+    {
+        x /= a;
+        y /= a;
+        return *this;
+    }
+    Vector operator/(const float a) const
+    {
+        Vector result = *this;
+        result /= a;
+        return result;
+    }
+    float operator*(const Vector & other) const
+    {
+        return x*other.x + y*other.y;
+    }
+    float abs()
+    {
+        return sqrtf(*this * *this);
     }
 };
 
@@ -73,7 +97,7 @@ protected:
     HANDLE thread;
 
     void CollideWithWalls(unsigned i);
-    void CollideWithOthers(unsigned i);
+    void CollideThem(unsigned i, unsigned j);
     void MoveOne(unsigned i, float delta);
     void ProcessPhysics();
 
