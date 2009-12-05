@@ -88,9 +88,6 @@ void CGlobulesDlg::OnPaint()
 
     RGBQUAD *buf = gs->GetBufferForRead();
 
-    if (buf == NULL) // it's nothing to draw
-        return;
-
 	CPaintDC dc(&canvas); // device context for painting
 
     CRect size;
@@ -108,12 +105,15 @@ void CGlobulesDlg::OnPaint()
     mem.CreateCompatibleDC(&dc);
     CBitmap *old = mem.SelectObject(&bmp);
 
-    bmp.SetBitmapBits(sizeof(RGBQUAD)*size.Width()*size.Height(), buf);
+    // copy from buffer if it is given
+    if (buf)
+    {
+        bmp.SetBitmapBits(sizeof(RGBQUAD)*size.Width()*size.Height(), buf);
+        gs->ChangeBufferForRead();
+    }
 
     dc.BitBlt(size.left, size.top, size.Width(), size.Height(), &mem, 0, 0, SRCCOPY);
     mem.SelectObject(old);
-
-    gs->ChangeBufferForRead();
 }
 
 void CGlobulesDlg::OnBnClickedButton1()
@@ -202,12 +202,18 @@ void CGlobulesDlg::PostNcDestroy()
 
 RGBQUAD * GlobulesSystem::GetBufferForRead()
 {
-    return empty ? NULL : bits_buffers[reader];
+    bufCS.Lock();
+    RGBQUAD * res = empty ? NULL : bits_buffers[reader];
+    bufCS.Unlock();
+    return res;
 }
 
 RGBQUAD * GlobulesSystem::GetBufferForWrite()
 {
-    return (!empty && reader == writer) ? NULL : bits_buffers[writer];
+    bufCS.Lock();
+    RGBQUAD * res = (!empty && reader == writer) ? NULL : bits_buffers[writer];
+    bufCS.Unlock();
+    return res;
 }
 
 void GlobulesSystem::ChangeBufferForRead()
