@@ -99,6 +99,7 @@ protected:
     std::vector<Globule> globules;
     double gravity;
     double elasticity;
+    double viscosity;
 
     void CollideWithWalls(unsigned i);
     void CollideThem(unsigned i, unsigned j);
@@ -128,7 +129,8 @@ public:
 
     void SetGlobulesCount(unsigned count);
     void SetGravity(double g);
-    void SetElasticity(double v);
+    void SetElasticity(double e);
+    void SetViscosity(double v);
 };
 
 
@@ -172,4 +174,6 @@ public:
     CSliderCtrl elasticity_slider;
 protected:
     virtual void OnOK();
+public:
+    CSliderCtrl viscosity_slider;
 };

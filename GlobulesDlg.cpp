@@ -45,6 +45,7 @@ void CGlobulesDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Control(pDX, IDC_SPIN1, globules_count_spiner);
     DDX_Control(pDX, IDC_STATIC2, canvas);
     DDX_Control(pDX, IDC_SLIDER2, elasticity_slider);
+    DDX_Control(pDX, IDC_SLIDER3, viscosity_slider);
 }
 
 BEGIN_MESSAGE_MAP(CGlobulesDlg, CDialog)
@@ -71,6 +72,9 @@ BOOL CGlobulesDlg::OnInitDialog()
 
     elasticity_slider.SetRange(0, 50, TRUE);
     elasticity_slider.SetPos(50);
+
+    viscosity_slider.SetRange(0, 50, TRUE);
+    viscosity_slider.SetPos(0);
 
     UpdateData(FALSE);
 
@@ -253,7 +257,9 @@ void GlobulesSystem::CollideThem(unsigned i, unsigned j)
 
 void GlobulesSystem::AccelerateOne(unsigned i, double delta)
 {
-    globules[i].v += Vector(0, -1) * gravity * delta;
+    Vector gravity_part = Vector(0, -1) * globules[i].mass() * gravity;
+    Vector viscosity_part = -globules[i].v * viscosity;
+    globules[i].v += ( gravity_part + viscosity_part ) / globules[i].mass() * delta;
 }
 
 void GlobulesSystem::MoveOne(unsigned i, double delta)
@@ -391,6 +397,11 @@ void GlobulesSystem::SetElasticity(double e)
     elasticity = e;
 }
 
+void GlobulesSystem::SetViscosity(double v)
+{
+    viscosity = v;
+}
+
 GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count)
 {
     ASSERT(buffer_width == buffer_height);
@@ -454,6 +465,7 @@ void CGlobulesDlg::LoadDataToGS()
     gs->SetGlobulesCount(globules_count);
     gs->SetGravity(static_cast<double>(gravity_slider.GetPos())/25);
     gs->SetElasticity(static_cast<double>(elasticity_slider.GetPos())/50);
+    gs->SetViscosity(static_cast<double>(viscosity_slider.GetPos())/50000);
 }
 
 void CGlobulesDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
