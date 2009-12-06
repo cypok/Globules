@@ -7,9 +7,9 @@
 #define IDC_EDIT1                       1000
 #define IDC_SPIN1                       1002
 #define IDC_COMBO1                      1003
-#define IDC_BUTTON1                     1005
 #define IDC_SLIDER1                     1006
 #define IDC_STATIC2                     1007
+#define IDC_SLIDER2                     1008
 
 // Next default values for new objects
 // 

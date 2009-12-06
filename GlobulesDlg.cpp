@@ -44,11 +44,11 @@ void CGlobulesDlg::DoDataExchange(CDataExchange* pDX)
     DDV_MinMaxUInt(pDX, globules_count, 0, 10);
     DDX_Control(pDX, IDC_SPIN1, globules_count_spiner);
     DDX_Control(pDX, IDC_STATIC2, canvas);
+    DDX_Control(pDX, IDC_SLIDER2, elasticity_slider);
 }
 
 BEGIN_MESSAGE_MAP(CGlobulesDlg, CDialog)
 	ON_WM_PAINT()
-    ON_BN_CLICKED(IDC_BUTTON1, &CGlobulesDlg::OnBnClickedButton1)
     ON_NOTIFY(UDN_DELTAPOS, IDC_SPIN1, &CGlobulesDlg::OnDeltaposSpin1)
     ON_WM_TIMER()
     ON_WM_HSCROLL()
@@ -68,6 +68,9 @@ BOOL CGlobulesDlg::OnInitDialog()
 
     gravity_slider.SetRange(0, 50, TRUE);
     gravity_slider.SetPos(5);
+
+    elasticity_slider.SetRange(0, 50, TRUE);
+    elasticity_slider.SetPos(50);
 
     UpdateData(FALSE);
 
@@ -116,12 +119,6 @@ void CGlobulesDlg::OnPaint()
 
     dc.BitBlt(size.left, size.top, size.Width(), size.Height(), &mem, 0, 0, SRCCOPY);
     mem.SelectObject(old);
-}
-
-void CGlobulesDlg::OnBnClickedButton1()
-{
-    UpdateData();
-    LoadDataToGS();
 }
 
 void CGlobulesDlg::OnDeltaposSpin1(NMHDR *pNMHDR, LRESULT *pResult)
@@ -184,18 +181,45 @@ static ULONGLONG GetTimeInMS()
 void GlobulesSystem::CollideWithWalls(unsigned i)
 {
     Globule &g = globules[i];
+    double deepness;
+    
+    deepness = 0.0 + g.radius - g.r.x;
+    if (deepness > 0)
+    {
+        if( g.v.x < 0)
+            g.v.x *= -elasticity;
+        g.r.x += deepness;
+    }
 
-    if((g.r.x < 0.0 + g.radius && g.v.x < 0) || (g.r.x > 1.0 - g.radius && g.v.x > 0))
-        g.v.x *= -1;
+    deepness = g.r.x - (1.0 - g.radius);
+    if (deepness > 0)
+    {
+        if( g.v.x > 0 )
+            g.v.x *= -elasticity;
+        g.r.x -= deepness;
+    }
 
-    if((g.r.y < 0.0 + g.radius && g.v.y < 0) || (g.r.y > 1.0 - g.radius && g.v.y > 0))
-        g.v.y *= -1;
+    deepness = 0.0 + g.radius - g.r.y;
+    if (deepness > 0)
+    {
+        if( g.v.y < 0)
+            g.v.y *= -elasticity;
+        g.r.y += deepness;
+    }
+
+    deepness = g.r.y - (1.0 - g.radius);
+    if (deepness > 0)
+    {
+        if( g.v.y > 0 )
+            g.v.y *= -elasticity;
+        g.r.y -= deepness;
+    }
 }
 
-static void CentralCollision(Vector n21, double m1, double m2, Vector v1, Vector v2, Vector *u1, Vector *u2)
+static void CentralCollision(Vector n21, double elasticity, double m1, double m2, Vector v1, Vector v2, Vector *u1, Vector *u2)
 {
     Vector V = (v1*m1 + v2*m2)/(m1 + m2);
-    double energy = m1*((v1-V)*(v1-V)) + m2*((v2-V)*(v2-V));
+    double energy = elasticity*elasticity*m1*((v1-V)*(v1-V)) + m2*((v2-V)*(v2-V));
     *u1 = V - n21 * sqrt(energy/m1/(1+m1/m2));
     *u2 = V + n21 * sqrt(energy/m2/(1+m2/m1));
 }
@@ -203,24 +227,27 @@ static void CentralCollision(Vector n21, double m1, double m2, Vector v1, Vector
 void GlobulesSystem::CollideThem(unsigned i, unsigned j)
 {
     Globule &g1 = globules[i], &g2 = globules[j];
-    if( (g1.r - g2.r).abs() < g1.radius + g2.radius )
+    double deepness = g1.radius + g2.radius - (g1.r - g2.r).abs();
+    if( deepness > 0 )
     {
         Vector n = (g2.r - g1.r)/(g2.r - g1.r).abs();
         double a1 = g1.v * n;
         double a2 = g2.v * n;
 
-        if( (a1 < 0 && a1 < a2) ||
-            (a2 > 0 && a2 > a1))
-            return;
+        if( (a1 > 0 && a2 < 0)  || a1 > a2)
+        {
+            Vector v1 = n * a1;
+            Vector v2 = n * a2;
+            Vector u1, u2;
 
-        Vector v1 = n * a1;
-        Vector v2 = n * a2;
-        Vector u1, u2;
+            CentralCollision(n, elasticity, g1.mass(), g2.mass(), v1, v2, &u1, &u2);
 
-        CentralCollision(n, g1.mass(), g2.mass(), v1, v2, &u1, &u2);
+            g1.v += u1 - v1;
+            g2.v += u2 - v2;
+        }
 
-        g1.v += u1 - v1;
-        g2.v += u2 - v2;
+        g1.r -= n * (deepness/2);
+        g2.r += n * (deepness/2);
     }
 }
 
@@ -270,26 +297,23 @@ DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
             continue; 
 
         // draw background
-        for(int i = 0; i < gs->size.cy; ++i)
-            for(int j = 0; j < gs->size.cx; ++j)
-            {
-                bool wall = (i == 0 || i+1 == gs->size.cy ||
-                             j == 0 || j+1 == gs->size.cx);
-                if(!wall)
-                    buf[gs->size.cx*i + j] = Color(255, 255, 255);
-            }
+        for(int i = 1; i < gs->size.cy-1; ++i)
+            for(int j = 1; j < gs->size.cx-1; ++j)
+                buf[gs->size.cx*i + j] = Color(255, 255, 255);
 
-        gs->DrawGlobules(buf);
 
         // draw walls
-        for(int i = 0; i < gs->size.cy; ++i)
-            for(int j = 0; j < gs->size.cx; ++j)
-            {
-                bool wall = (i == 0 || i+1 == gs->size.cy ||
-                             j == 0 || j+1 == gs->size.cx);
-                if(wall)
-                    buf[gs->size.cx*i + j] = Color(0, 0, 0);
-            }
+        for(int j = 0; j < gs->size.cx; ++j)
+        {
+            buf[j] = Color(0, 0, 0); // top
+            buf[gs->size.cx*(gs->size.cy-1) + j] = Color(0, 0, 0); // bottom
+        }
+        for(int i = 1; i < gs->size.cy-1; ++i)
+        {
+            buf[gs->size.cx*i] = Color(0, 0, 0); // left
+            buf[gs->size.cx*i + gs->size.cx-1] = Color(0, 0, 0); // right
+        }
+        gs->DrawGlobules(buf);
 
         gs->ChangeBufferForWrite();
     }
@@ -362,6 +386,11 @@ void GlobulesSystem::SetGravity(double g)
     gravity = g;
 }
 
+void GlobulesSystem::SetElasticity(double e)
+{
+    elasticity = e;
+}
+
 GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count)
 {
     ASSERT(buffer_width == buffer_height);
@@ -399,10 +428,10 @@ void GlobulesSystem::SetGlobulesCount(unsigned count)
 
 static void DrawCircle(RGBQUAD *buf, double x, double y, double radius, RGBQUAD color, int buf_width, int buf_height)
 {
-    for(int i = max(0, static_cast<int>(floor(y-radius))); i < min(buf_height-1, ceil(y+radius)); ++i)
-        for(int j = max(0, static_cast<int>(floor(x-radius))); j < min(buf_width-1, ceil(x+radius)); ++j)
-            if ((i-y)*(i-y) + (x-j)*(x-j) <= radius*radius)
-                buf[i*buf_width + j] = color;
+    for(int i = max(0, static_cast<int>(floor(y-radius))); i < min(buf_height-2, ceil(y+radius)); ++i)
+        for(int j = max(0, static_cast<int>(floor(x-radius))); j < min(buf_width-2, ceil(x+radius)); ++j)
+            if ((i-y)*(i-y) + (j-x)*(j-x) <= radius*radius)
+                buf[(i+1)*buf_width + (j+1)] = color;
 }
 
 void GlobulesSystem::DrawGlobules(RGBQUAD *buf)
@@ -411,9 +440,9 @@ void GlobulesSystem::DrawGlobules(RGBQUAD *buf)
     {
         Globule &g = globules[i];
         DrawCircle(buf,
-            static_cast<double>(size.cx) * g.r.x,
-            static_cast<double>(size.cy) * (1 - g.r.y),
-            sqrt(static_cast<double>(size.cx * size.cy)) * g.radius,
+            static_cast<double>(size.cx-2) * g.r.x,
+            static_cast<double>(size.cy-2) * (1 - g.r.y),
+            sqrt(static_cast<double>((size.cx-2) * (size.cy-2))) * g.radius,
             g.color,
             size.cx, size.cy);
     }
@@ -421,15 +450,21 @@ void GlobulesSystem::DrawGlobules(RGBQUAD *buf)
 
 void CGlobulesDlg::LoadDataToGS()
 {
+    UpdateData();
     gs->SetGlobulesCount(globules_count);
     gs->SetGravity(static_cast<double>(gravity_slider.GetPos())/25);
+    gs->SetElasticity(static_cast<double>(elasticity_slider.GetPos())/50);
 }
 
 void CGlobulesDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
     // TODO: Add your message handler code here and/or call default
-    UpdateData();
     LoadDataToGS();
 
     CDialog::OnHScroll(nSBCode, nPos, pScrollBar);
+}
+
+void CGlobulesDlg::OnOK()
+{
+    LoadDataToGS();
 }

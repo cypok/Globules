@@ -6,7 +6,7 @@
 #include "afxwin.h"
 
 const UINT MAX_GLOBULES_COUNT = 10;
-const unsigned BUFFERS_COUNT = 2;
+const unsigned BUFFERS_COUNT = 10;
 const unsigned TIMER_PERIOD = 10;
 
 struct Vector
@@ -98,6 +98,7 @@ protected:
 
     std::vector<Globule> globules;
     double gravity;
+    double elasticity;
 
     void CollideWithWalls(unsigned i);
     void CollideThem(unsigned i, unsigned j);
@@ -127,6 +128,7 @@ public:
 
     void SetGlobulesCount(unsigned count);
     void SetGravity(double g);
+    void SetElasticity(double v);
 };
 
 
@@ -158,7 +160,6 @@ protected:
     virtual void PostNcDestroy();
 public:
     CString template_name;
-    afx_msg void OnBnClickedButton1();
     CSliderCtrl gravity_slider;
     UINT globules_count;
     CSpinButtonCtrl globules_count_spiner;
@@ -168,4 +169,7 @@ public:
     afx_msg void OnTimer(UINT_PTR nIDEvent);
     void LoadDataToGS();
     afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
+    CSliderCtrl elasticity_slider;
+protected:
+    virtual void OnOK();
 };
