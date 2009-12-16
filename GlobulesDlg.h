@@ -5,7 +5,7 @@
 #include "afxcmn.h"
 #include "afxwin.h"
 
-const UINT MAX_GLOBULES_COUNT = 10;
+const UINT MAX_GLOBULES_COUNT = 30;
 const unsigned BUFFERS_COUNT = 10;
 const unsigned TIMER_PERIOD = 10;
 

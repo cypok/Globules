@@ -41,7 +41,7 @@ void CGlobulesDlg::DoDataExchange(CDataExchange* pDX)
     DDX_CBString(pDX, IDC_COMBO1, template_name);
     DDX_Control(pDX, IDC_SLIDER1, gravity_slider);
     DDX_Text(pDX, IDC_EDIT1, globules_count);
-    DDV_MinMaxUInt(pDX, globules_count, 0, 10);
+    DDV_MinMaxUInt(pDX, globules_count, 0, MAX_GLOBULES_COUNT);
     DDX_Control(pDX, IDC_SPIN1, globules_count_spiner);
     DDX_Control(pDX, IDC_STATIC2, canvas);
     DDX_Control(pDX, IDC_SLIDER2, elasticity_slider);
