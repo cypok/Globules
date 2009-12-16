@@ -130,13 +130,17 @@ void CGlobulesDlg::OnPaint()
     mem.SelectObject(old);
 }
 
+void CGlobulesDlg::CheckGlobulesCount()
+{
+    globules_count = min(max(0,int(globules_count)), MAX_GLOBULES_COUNT);
+}
+
 void CGlobulesDlg::OnDeltaposSpin1(NMHDR *pNMHDR, LRESULT *pResult)
 {
     LPNMUPDOWN pNMUpDown = reinterpret_cast<LPNMUPDOWN>(pNMHDR);
 
-    int count = globules_count - pNMUpDown->iDelta;
-    globules_count = min(max(0,count), MAX_GLOBULES_COUNT);
-
+    globules_count -= pNMUpDown->iDelta;
+    CheckGlobulesCount();
     UpdateData(FALSE);
 
     LoadDataToGS();
@@ -186,6 +190,11 @@ void CGlobulesDlg::OnCbnSelchangeCombo1()
 void CGlobulesDlg::LoadDataToGS()
 {
     UpdateData();
+
+    // it must be from 0 to MAX
+    CheckGlobulesCount();
+    UpdateData(FALSE);
+
     gs->SetGlobulesCount(globules_count);
     gs->SetGravity(static_cast<double>(gravity_slider.GetPos())/25);
     gs->SetElasticity(static_cast<double>(elasticity_slider.GetPos())/50);

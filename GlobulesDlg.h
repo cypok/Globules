@@ -45,6 +45,7 @@ protected:
     void SelectTemplate();
     void LoadDataToGS();
     void Redraw();
+    void CheckGlobulesCount();
 
 	// Generated message map functions
 	DECLARE_MESSAGE_MAP()
@@ -58,6 +59,5 @@ protected:
     afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
     afx_msg void OnStnClickedWind();
     afx_msg void OnCbnSelchangeCombo1();
-public:
     virtual BOOL PreTranslateMessage(MSG* pMsg);
 };
