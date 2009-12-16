@@ -194,6 +194,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\GlobulesSystem.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\stdafx.cpp"
 				>
 				<FileConfiguration
@@ -225,6 +229,10 @@
 			</File>
 			<File
 				RelativePath=".\GlobulesDlg.h"
+				>
+			</File>
+			<File
+				RelativePath=".\GlobulesSystem.h"
 				>
 			</File>
 			<File
