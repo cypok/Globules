@@ -100,6 +100,7 @@ protected:
     double gravity;
     double elasticity;
     double viscosity;
+    double wind_power;
 
     void CollideWithWalls(unsigned i);
     void CollideThem(unsigned i, unsigned j);
@@ -131,6 +132,7 @@ public:
     void SetGravity(double g);
     void SetElasticity(double e);
     void SetViscosity(double v);
+    void SetWindPower(double wp);
 };
 
 
@@ -158,6 +160,7 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
+    virtual void OnOK();
 
     virtual void PostNcDestroy();
 public:
@@ -172,8 +175,6 @@ public:
     void LoadDataToGS();
     afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
     CSliderCtrl elasticity_slider;
-protected:
-    virtual void OnOK();
-public:
     CSliderCtrl viscosity_slider;
+    CSliderCtrl wind_power_slider;
 };

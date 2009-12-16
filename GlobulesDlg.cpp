@@ -46,6 +46,7 @@ void CGlobulesDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Control(pDX, IDC_STATIC2, canvas);
     DDX_Control(pDX, IDC_SLIDER2, elasticity_slider);
     DDX_Control(pDX, IDC_SLIDER3, viscosity_slider);
+    DDX_Control(pDX, IDC_SLIDER4, wind_power_slider);
 }
 
 BEGIN_MESSAGE_MAP(CGlobulesDlg, CDialog)
@@ -75,6 +76,9 @@ BOOL CGlobulesDlg::OnInitDialog()
 
     viscosity_slider.SetRange(0, 50, TRUE);
     viscosity_slider.SetPos(0);
+
+    wind_power_slider.SetRange(0, 50, TRUE);
+    wind_power_slider.SetPos(0);
 
     UpdateData(FALSE);
 
@@ -257,9 +261,21 @@ void GlobulesSystem::CollideThem(unsigned i, unsigned j)
 
 void GlobulesSystem::AccelerateOne(unsigned i, double delta)
 {
+    Vector wind(1, 0);
+
+    // m*g
     Vector gravity_part = Vector(0, -1) * globules[i].mass() * gravity;
-    Vector viscosity_part = -globules[i].v * viscosity;
-    globules[i].v += ( gravity_part + viscosity_part ) / globules[i].mass() * delta;
+
+    // - v * S * viscosity,  where S ~ r^2
+    Vector viscosity_part = -globules[i].v * globules[i].radius * globules[i].radius * viscosity;
+
+    // wind
+    Vector wind_part =  wind *                              // same direction as wind
+                        max(0, 1 - globules[i].v*wind) *    // project of v to wind vector
+                        wind_power *                        // wind power
+                        globules[i].radius * globules[i].radius; // S ~ r^2
+
+    globules[i].v += ( gravity_part + viscosity_part + wind_part) / globules[i].mass() * delta;
 }
 
 void GlobulesSystem::MoveOne(unsigned i, double delta)
@@ -275,9 +291,6 @@ void GlobulesSystem::ProcessPhysics()
     before_now = now;
 
     for(unsigned i = 0; i < globules.size(); ++i)
-        AccelerateOne(i, delta);
-
-    for(unsigned i = 0; i < globules.size(); ++i)
         CollideWithWalls(i);
     
     for(unsigned i = 0; i < globules.size(); ++i)
@@ -285,7 +298,10 @@ void GlobulesSystem::ProcessPhysics()
             CollideThem(i, j);
 
     for(unsigned i = 0; i < globules.size(); ++i)
+    {
+        AccelerateOne(i, delta);
         MoveOne(i, delta);
+    }
 }
 
 DWORD WINAPI GlobulesSystem::CalcAndRender(LPVOID param)
@@ -372,7 +388,7 @@ void GlobulesSystem::AddRandomGlobule()
 {
     Globule g;
     g.color = RandColor();
-    g.radius = 0.01f + randf() * 0.1; // 10..50
+    g.radius = 0.01f + randf() * 0.1;
     g.r.x = g.radius + (1.0 - 2*g.radius) * randf();
     g.r.y = g.radius + (1.0 - 2*g.radius) * randf();
     g.v.x = -0.05 + 0.1 * randf();
@@ -400,6 +416,11 @@ void GlobulesSystem::SetElasticity(double e)
 void GlobulesSystem::SetViscosity(double v)
 {
     viscosity = v;
+}
+
+void GlobulesSystem::SetWindPower(double wp)
+{
+    wind_power = wp;
 }
 
 GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g_count)
@@ -466,6 +487,7 @@ void CGlobulesDlg::LoadDataToGS()
     gs->SetGravity(static_cast<double>(gravity_slider.GetPos())/25);
     gs->SetElasticity(static_cast<double>(elasticity_slider.GetPos())/50);
     gs->SetViscosity(static_cast<double>(viscosity_slider.GetPos())/50000);
+    gs->SetWindPower(static_cast<double>(wind_power_slider.GetPos())/50);
 }
 
 void CGlobulesDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
