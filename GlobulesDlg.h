@@ -30,31 +30,30 @@ protected:
 	HICON m_hIcon;
     GlobulesSystem *gs;
 
-	// Generated message map functions
-	virtual BOOL OnInitDialog();
-	afx_msg void OnPaint();
-	afx_msg HCURSOR OnQueryDragIcon();
-	DECLARE_MESSAGE_MAP()
-    virtual void OnOK();
-
-    virtual void PostNcDestroy();
-
-    void SelectTemplate();
-public:
+    CComboBox templates;
     CString template_name;
-    CSliderCtrl gravity_slider;
-    UINT globules_count;
-    CSpinButtonCtrl globules_count_spiner;
-    afx_msg void OnDeltaposSpin1(NMHDR *pNMHDR, LRESULT *pResult);
     CStatic canvas;
-    void Redraw();
-    afx_msg void OnTimer(UINT_PTR nIDEvent);
-    void LoadDataToGS();
-    afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
+    CSpinButtonCtrl globules_count_spiner;
+    UINT globules_count;
+    CSliderCtrl gravity_slider;
     CSliderCtrl elasticity_slider;
     CSliderCtrl viscosity_slider;
     WindCtrl wind_chooser;
+
+    void SelectTemplate();
+    void LoadDataToGS();
+    void Redraw();
+
+	// Generated message map functions
+	DECLARE_MESSAGE_MAP()
+	virtual BOOL OnInitDialog();
+    virtual void OnOK();
+    virtual void PostNcDestroy();
+	afx_msg void OnPaint();
+	afx_msg HCURSOR OnQueryDragIcon();
+    afx_msg void OnDeltaposSpin1(NMHDR *pNMHDR, LRESULT *pResult);
+    afx_msg void OnTimer(UINT_PTR nIDEvent);
+    afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
     afx_msg void OnStnClickedWind();
     afx_msg void OnCbnSelchangeCombo1();
-    CComboBox templates;
 };
