@@ -9,6 +9,24 @@
 #define new DEBUG_NEW
 #endif
 
+struct Template
+{
+    TCHAR name[20];
+    double gravity;
+    double elasticity;
+    double viscosity;
+    double wind_power;
+    double wind_angle;
+};
+
+const static Template TEMPLATES[] = {
+    {_T("Earth"),   0.98,   1,      0.1,    0, 0},
+    {_T("Moon"),    0.3,    1,      0.01,   0.2, 0},
+    {_T("Oil"),     0.0,    0.5,    0.05,   0.25, 3.14/2},
+    {_T("Space"),   0.0,    1,      0.00,   0, 0},
+};
+const unsigned TEMPLATES_COUNT = sizeof(TEMPLATES)/sizeof(TEMPLATES[0]);
+
 CGlobulesDlg::CGlobulesDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CGlobulesDlg::IDD, pParent)
     , template_name(_T(""))
@@ -29,7 +47,6 @@ void CGlobulesDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Control(pDX, IDC_STATIC2, canvas);
     DDX_Control(pDX, IDC_SLIDER2, elasticity_slider);
     DDX_Control(pDX, IDC_SLIDER3, viscosity_slider);
-    DDX_Control(pDX, IDC_SLIDER4, wind_power_slider);
     DDX_Control(pDX, IDC_WIND, wind_chooser);
 }
 
@@ -39,6 +56,7 @@ BEGIN_MESSAGE_MAP(CGlobulesDlg, CDialog)
     ON_WM_TIMER()
     ON_WM_HSCROLL()
     ON_STN_CLICKED(IDC_WIND, &CGlobulesDlg::OnStnClickedWind)
+    ON_CBN_SELCHANGE(IDC_COMBO1, &CGlobulesDlg::OnCbnSelchangeCombo1)
 END_MESSAGE_MAP()
 
 
@@ -50,22 +68,17 @@ BOOL CGlobulesDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 
-    template_name = _T("[none]");
+    template_name = _T("Space");
     globules_count = 5;
 
     gravity_slider.SetRange(0, 50, TRUE);
-    gravity_slider.SetPos(5);
 
     elasticity_slider.SetRange(0, 50, TRUE);
-    elasticity_slider.SetPos(50);
 
     viscosity_slider.SetRange(0, 50, TRUE);
-    viscosity_slider.SetPos(0);
-
-    wind_power_slider.SetRange(0, 50, TRUE);
-    wind_power_slider.SetPos(0);
 
     UpdateData(FALSE);
+
 
     SetTimer(0, TIMER_PERIOD, NULL);
 
@@ -74,7 +87,9 @@ BOOL CGlobulesDlg::OnInitDialog()
     ScreenToClient(&size);
 
     gs = new GlobulesSystem(size.Width(), size.Height(), globules_count);
-    LoadDataToGS();
+
+    SelectTemplate();
+    
     gs->CreateThread();
 
 	return TRUE;
@@ -180,4 +195,28 @@ void CGlobulesDlg::OnOK()
 void CGlobulesDlg::OnStnClickedWind()
 {
     LoadDataToGS();
+}
+
+void CGlobulesDlg::SelectTemplate()
+{
+    if (template_name == _T("[none]"))
+        return;
+    
+    for(unsigned i = 0; i < TEMPLATES_COUNT; ++i)
+        if (template_name == TEMPLATES[i].name)
+        {
+            Template t = TEMPLATES[i];
+            gravity_slider.SetPos(int(t.gravity*25));
+            elasticity_slider.SetPos(int(t.elasticity*50));
+            viscosity_slider.SetPos(int(t.viscosity*50000));
+            wind_chooser.SetVars(t.wind_power, t.wind_angle);
+            LoadDataToGS();
+            UpdateData(FALSE);
+        }
+}
+
+void CGlobulesDlg::OnCbnSelchangeCombo1()
+{
+    UpdateData();
+    SelectTemplate();
 }

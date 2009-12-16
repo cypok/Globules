@@ -50,8 +50,8 @@ void WindCtrl::OnPaint()
     dc.SelectObject(old);
 
     // zero zone
-    dc.Ellipse( width*(0.5-ZERO_ZONE/2), height*(0.5-ZERO_ZONE/2),
-                width*(0.5+ZERO_ZONE/2), height*(0.5+ZERO_ZONE/2) );
+    dc.Ellipse( int(width*(0.5-ZERO_ZONE/2)), int(height*(0.5-ZERO_ZONE/2)),
+                int(width*(0.5+ZERO_ZONE/2)), int(double(height)*(0.5+ZERO_ZONE/2)) );
 }
 
 void WindCtrl::OnLButtonDown(UINT nFlags, CPoint point)
@@ -86,4 +86,15 @@ double WindCtrl::GetAngle()
 double WindCtrl::GetPower()
 {
     return power;
+}
+
+void WindCtrl::SetVars(double p, double a)
+{
+    power = p;
+    angle = a;
+
+	CRect rect;
+	GetClientRect(&rect);
+    InvalidateRect(&rect, 0);
+    UpdateWindow();
 }

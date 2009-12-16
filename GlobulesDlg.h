@@ -38,6 +38,8 @@ protected:
     virtual void OnOK();
 
     virtual void PostNcDestroy();
+
+    void SelectTemplate();
 public:
     CString template_name;
     CSliderCtrl gravity_slider;
@@ -51,7 +53,8 @@ public:
     afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
     CSliderCtrl elasticity_slider;
     CSliderCtrl viscosity_slider;
-    CSliderCtrl wind_power_slider;
     WindCtrl wind_chooser;
     afx_msg void OnStnClickedWind();
+    afx_msg void OnCbnSelchangeCombo1();
+    CComboBox templates;
 };

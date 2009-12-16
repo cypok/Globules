@@ -22,6 +22,7 @@ public:
     afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
     double GetAngle();
     double GetPower();
+    void SetVars(double p, double a);
 };
 
 
