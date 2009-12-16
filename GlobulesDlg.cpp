@@ -67,30 +67,31 @@ BOOL CGlobulesDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// Set big icon
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
+    EnableToolTips(true);
 
-    template_name = _T("Space");
+    tool_tip.Create(this);
+    tool_tip.AddTool(GetDlgItem(IDC_EDIT1), _T("Add more random globules or remove one"));
+    tool_tip.AddTool(&globules_count_spiner, _T("Add more random globules or remove one"));
+    tool_tip.AddTool(GetDlgItem(IDC_COMBO1), _T("Choose variables from predefined templates"));
+    tool_tip.AddTool(&gravity_slider, _T("Fixed acceleration directed down"));
+    tool_tip.AddTool(&elasticity_slider, _T("Coefficient shows \"softness\" of globules"));
+    tool_tip.AddTool(&viscosity_slider, _T("Coefficient shows \"density\" of space"));
+    tool_tip.AddTool(&wind_chooser, _T("Wind power and wind angle"));
+    tool_tip.Activate(true);
+
     globules_count = 5;
-
-    gravity_slider.SetRange(0, 50, TRUE);
-
-    elasticity_slider.SetRange(0, 50, TRUE);
-
-    viscosity_slider.SetRange(0, 50, TRUE);
-
-    UpdateData(FALSE);
-
-
-    SetTimer(0, TIMER_PERIOD, NULL);
+    template_name = _T("Space");
 
     CRect size;
     canvas.GetWindowRect(&size);
     ScreenToClient(&size);
-
     gs = new GlobulesSystem(size.Width(), size.Height(), globules_count);
 
+    UpdateData(FALSE);
     SelectTemplate();
     
     gs->CreateThread();
+    SetTimer(0, TIMER_PERIOD, NULL);
 
 	return TRUE;
 }
@@ -143,17 +144,6 @@ void CGlobulesDlg::OnDeltaposSpin1(NMHDR *pNMHDR, LRESULT *pResult)
     *pResult = 0;
 }
 
-void CGlobulesDlg::Redraw()
-{
-    static unsigned counter = 0;
-    CRect size;
-    canvas.GetWindowRect(&size);
-    ScreenToClient(&size);
-
-    InvalidateRect(size, 0);
-    UpdateWindow();
-}
-
 void CGlobulesDlg::OnTimer(UINT_PTR nIDEvent)
 {
     Redraw();
@@ -167,16 +157,6 @@ void CGlobulesDlg::PostNcDestroy()
     delete gs;
 
     CDialog::PostNcDestroy();
-}
-
-void CGlobulesDlg::LoadDataToGS()
-{
-    UpdateData();
-    gs->SetGlobulesCount(globules_count);
-    gs->SetGravity(static_cast<double>(gravity_slider.GetPos())/25);
-    gs->SetElasticity(static_cast<double>(elasticity_slider.GetPos())/50);
-    gs->SetViscosity(static_cast<double>(viscosity_slider.GetPos())/50000);
-    gs->SetWind(MAX_WIND_POWER*wind_chooser.GetPower(), wind_chooser.GetAngle());
 }
 
 void CGlobulesDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
@@ -197,6 +177,22 @@ void CGlobulesDlg::OnStnClickedWind()
     LoadDataToGS();
 }
 
+void CGlobulesDlg::OnCbnSelchangeCombo1()
+{
+    UpdateData();
+    SelectTemplate();
+}
+
+void CGlobulesDlg::LoadDataToGS()
+{
+    UpdateData();
+    gs->SetGlobulesCount(globules_count);
+    gs->SetGravity(static_cast<double>(gravity_slider.GetPos())/25);
+    gs->SetElasticity(static_cast<double>(elasticity_slider.GetPos())/50);
+    gs->SetViscosity(static_cast<double>(viscosity_slider.GetPos())/50000);
+    gs->SetWind(MAX_WIND_POWER*wind_chooser.GetPower(), wind_chooser.GetAngle());
+}
+
 void CGlobulesDlg::SelectTemplate()
 {
     if (template_name == _T("[none]"))
@@ -215,8 +211,20 @@ void CGlobulesDlg::SelectTemplate()
         }
 }
 
-void CGlobulesDlg::OnCbnSelchangeCombo1()
+void CGlobulesDlg::Redraw()
 {
-    UpdateData();
-    SelectTemplate();
+    static unsigned counter = 0;
+    CRect size;
+    canvas.GetWindowRect(&size);
+    ScreenToClient(&size);
+
+    InvalidateRect(size, 0);
+    UpdateWindow();
+}
+
+BOOL CGlobulesDlg::PreTranslateMessage(MSG* pMsg)
+{
+    tool_tip.RelayEvent(pMsg);
+
+    return CDialog::PreTranslateMessage(pMsg);
 }

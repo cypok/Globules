@@ -40,6 +40,8 @@ protected:
     CSliderCtrl viscosity_slider;
     WindCtrl wind_chooser;
 
+    CToolTipCtrl tool_tip;
+
     void SelectTemplate();
     void LoadDataToGS();
     void Redraw();
@@ -56,4 +58,6 @@ protected:
     afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
     afx_msg void OnStnClickedWind();
     afx_msg void OnCbnSelchangeCombo1();
+public:
+    virtual BOOL PreTranslateMessage(MSG* pMsg);
 };
