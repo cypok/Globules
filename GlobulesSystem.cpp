@@ -292,7 +292,8 @@ GlobulesSystem::GlobulesSystem(LONG buffer_width, LONG buffer_height, unsigned g
 
 GlobulesSystem::~GlobulesSystem()
 {
-    delete[] bits_buffers[0];
+    for(unsigned i = 0; i < BUFFERS_COUNT; ++i)
+        delete[] bits_buffers[i];
 }
 
 void GlobulesSystem::SetGlobulesCount(unsigned count)
