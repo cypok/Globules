@@ -20,12 +20,18 @@ struct Template
 };
 
 const static Template TEMPLATES[] = {
-    {_T("Earth"),   0.98,   1,      0.1,    0, 0},
-    {_T("Moon"),    0.3,    1,      0.01,   0.2, 0},
-    {_T("Oil"),     0.0,    0.5,    0.05,   0.25, 3.14/2},
-    {_T("Space"),   0.0,    1,      0.00,   0, 0},
+    {_T("Earth"),   0.98,   1,      0.1,    0,      0},
+    {_T("Moon"),    0.3,    1,      0.1,    0.2,    0},
+    {_T("Oil"),     0.0,    0.5,    0.5,    0.25,   3.14/2},
+    {_T("Space"),   0.0,    1,      0.00,   0,      0},
 };
 const unsigned TEMPLATES_COUNT = sizeof(TEMPLATES)/sizeof(TEMPLATES[0]);
+
+const unsigned SLIDER_TICKS = 100;
+
+const double GRAVITY_SCALE = 2;
+const double ELASTICITY_SCALE = 1;
+const double VISCOSITY_SCALE = 0.5;
 
 CGlobulesDlg::CGlobulesDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CGlobulesDlg::IDD, pParent)
@@ -81,6 +87,9 @@ BOOL CGlobulesDlg::OnInitDialog()
 
     globules_count = 5;
     template_name = _T("Space");
+    gravity_slider.SetRange(0, SLIDER_TICKS, TRUE);
+    elasticity_slider.SetRange(0, SLIDER_TICKS, TRUE);
+    viscosity_slider.SetRange(0, SLIDER_TICKS, TRUE);
 
     CRect size;
     canvas.GetWindowRect(&size);
@@ -165,7 +174,6 @@ void CGlobulesDlg::PostNcDestroy()
 
 void CGlobulesDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
-    // TODO: Add your message handler code here and/or call default
     LoadDataToGS();
 
     CDialog::OnHScroll(nSBCode, nPos, pScrollBar);
@@ -196,9 +204,9 @@ void CGlobulesDlg::LoadDataToGS()
     UpdateData(FALSE);
 
     gs->SetGlobulesCount(globules_count);
-    gs->SetGravity(static_cast<double>(gravity_slider.GetPos())/25);
-    gs->SetElasticity(static_cast<double>(elasticity_slider.GetPos())/50);
-    gs->SetViscosity(static_cast<double>(viscosity_slider.GetPos())/50000);
+    gs->SetGravity(static_cast<double>(gravity_slider.GetPos())*GRAVITY_SCALE/SLIDER_TICKS);
+    gs->SetElasticity(static_cast<double>(elasticity_slider.GetPos())*ELASTICITY_SCALE/SLIDER_TICKS);
+    gs->SetViscosity(static_cast<double>(viscosity_slider.GetPos())*VISCOSITY_SCALE/SLIDER_TICKS);
     gs->SetWind(MAX_WIND_POWER*wind_chooser.GetPower(), wind_chooser.GetAngle());
 }
 
@@ -211,9 +219,9 @@ void CGlobulesDlg::SelectTemplate()
         if (template_name == TEMPLATES[i].name)
         {
             Template t = TEMPLATES[i];
-            gravity_slider.SetPos(int(t.gravity*25));
-            elasticity_slider.SetPos(int(t.elasticity*50));
-            viscosity_slider.SetPos(int(t.viscosity*50000));
+            gravity_slider.SetPos(int(t.gravity/GRAVITY_SCALE*SLIDER_TICKS));
+            elasticity_slider.SetPos(int(t.elasticity/ELASTICITY_SCALE*SLIDER_TICKS));
+            viscosity_slider.SetPos(int(t.viscosity/VISCOSITY_SCALE*SLIDER_TICKS));
             wind_chooser.SetVars(t.wind_power, t.wind_angle);
             LoadDataToGS();
             UpdateData(FALSE);
